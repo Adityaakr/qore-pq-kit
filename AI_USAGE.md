@@ -96,3 +96,13 @@ and one ML-KEM key, and ran `verifyMember` against the live chain. The owner
 supplied the faucet evidence for S5, and the worker checked the EVM side
 read-only. It also cut `pqauthset.ts` loose from the SDK so the browser
 bundle fell from 2.7 MB to 162 KB.
+
+### 16 November 2026: spike S2 and the smart-account module (this worker)
+
+On throwaway accounts funded from the spike bank, the worker deployed a
+throwaway target contract, linked an agent key to an owner account with a
+spending rule, and relayed four `MsgExecuteEVM` calls: allowed, over the
+limit, off target and a replay. It recorded each outcome and transaction hash,
+then wrote `scripts/smart-account.ts` from what worked, and re-ran the spike
+through the module to prove it live. No drill account or drill contract was
+used.

@@ -12,7 +12,7 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | --- | --- | --- |
 | K1 | Does the modexp precompile (`0x05`) work, and do `Shamir.sol` / `SealedSlot.sol` give the vectors' answers on the real chain? | **Settled: yes** (16 Nov) |
 | S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | **Settled** (16 Nov): yes. A registration without a proof is still accepted and reads `false` in both places, so `PqAuth` refuses it |
-| S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | Open: needs funded accounts |
+| S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | **Settled** (16 Nov): yes, and no window is needed. Over-limit and off-target calls come back `success=false` (nonce spent); a replay is refused and still pays its fee. ERC-20 `denomLimits` are untested (no fUSD on the owner yet) |
 | S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | **Settled** (16 Nov): cards interoperate; a hybrid-signed `MsgRegisterKEMKey` works; `verifyMember` passes against the live chain; the browser entry points bundle to 162 KB with no Node built-ins |
 | S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
 | S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | **Partly settled** (16 Nov): fest tokens arrive as bank coins `erc20:0x…`, and ERC-20 `balanceOf` reads 0, so `MsgConvertCoin` is needed. A claim to a scripted address failed on the faucet side; a retry is pending with the owner |
@@ -195,3 +195,62 @@ into the holder's ERC-20 balance; the kit's `convert-fusd` does that. The
 spending-rule denom for fUSD in the Bidder must be checked against which side
 the agent spends from (spike S2). Whether a dashboard claim can target a
 scripted address is still open: the first attempt failed on the faucet side.
+
+## S2. `MsgExecuteEVM` with a linked key and a spending rule (16 November 2026)
+
+**Run:** `forge build && npx tsx scripts/spikes/s2.ts`, twice: once while
+writing it, and once more after its agent side moved into
+`scripts/smart-account.ts`, to prove the module live. The accounts are
+throwaways, funded from the spike bank:
+
+- owner `qor1tjh4rhpleesty97hx5y5c5ufmpphs7g54sq0qv` / `0x5caF51dC3fce60B217d735094C5389d843787914`;
+- agent `0x3E8cDceaEc38Ac03e64aC6006aA2261B2fCBAb31`;
+- relayer `qor1dt98ep2ev99ujz8swmc2yt6awr79027fwfscj6`.
+
+**Setup:**
+
+1. The owner and the relayer registered ML-DSA keys with a proof
+   (B6B0E20B…, F01FC9EA…).
+2. The owner opened an unscoped window, deployed `test/live/SpikeTarget.sol` at
+   `0x33055a97ebf2ac0dc5653b932f18c0767d9bcbd2` (EVM tx `0xe78caa91…`, 155,991
+   gas) and closed the window again.
+3. The owner linked the agent in one hybrid-signed transaction (E9E1D6F6…). It
+   carried `MsgUpdateSpendingRules` and `MsgRegisterAuthenticator`, linking
+   the agent by its 20-byte address with an EIP-191 possession proof and the
+   permission `evm`.
+4. The rule was `per_tx_limit 1000` and `daily_limit 5000` (uqor), with
+   `allowed_evm_calls ["0x33055a97…/0x2b926184"]` (`commitBid(uint256)`).
+
+The chain answered with digest `v2`. The owner had **no EVM window** for any
+of A to D.
+
+**Results** (second run, through `smart-account.ts`; the first run gave the
+same outcomes):
+
+| Case | Tx | Outcome |
+| --- | --- | --- |
+| A. `commitBid(7)`, value 0 | `DEE82B30A4B61F53888A3F2E6A28E7F287EA4411FA4D05BA13B9B2A0928D1836` | code 0, `success=true`, 28,263 gas; `commits(owner)` went up, so the call ran **as the owner's 0x address**; agent nonce 3 → 4 |
+| B. `commitBid(7)` with 0.01 QOR | `4E232FA722F9B477FAC70D0AAED490FA302DC9D33E2AFD3131546D11B90A2182` | code 0, `success=false`: "per-tx limit 1000uqor exceeded (attempted 10000): spending limit exceeded"; nonce 4 → 5 |
+| C. `other(7)`, not allowlisted | `17337652D1049DCE8BD57A4C7BD7E0FB9F0415C4A395E134926855EFECDAF137` | code 0, `success=false`: "a linked key with a spending rule may call 0x3305… with data only if the rule lists the call in allowed_evm_calls … authenticator not permitted for this action"; nonce 5 → 6 |
+| D. A's exact message again | `CC20A4F7…` | refused at delivery: "authenticator replay - the nonce is not the linked key's current authenticator sequence"; nonce unchanged; **the relayer was still charged** 150,000 uqor |
+
+**Conclusions:**
+
+- R1 is retired. `MsgExecuteEVM` from a linked secp256k1 key with a spending
+  rule works end to end on the testnet.
+- R2 is answered: the owner account needs **no** EVM window. In the Bidder,
+  the spending rule plus the ERC-20 allowance bound the agent. A scoped window
+  on the agent's own account remains useful only for the agent's own
+  permissionless calls.
+- The rule is the account's first enabled rule. The authenticator itself
+  reads `has_spend_rule: false`, and the limits still applied.
+- A rule-bound refusal is **not** a transaction error. It is `success=false`
+  in a code-0 transaction, and it spends the agent's nonce, so the relayer
+  must decode every result (`smart-account.ts` `relay` does) and never retry
+  the same message.
+- Value limits are in uqor: 0.01 QOR of `msg.value` counted as 10,000.
+- The nonce is the key's own counter, read from
+  `/qorechain/abstractaccount/v1/auth_nonce/{owner}/{key}`. A replay costs the
+  relayer a fee, so the relayer should check the nonce before broadcasting.
+- **Still open:** ERC-20 `denomLimits` for fUSD (the owner holds no fUSD yet,
+  S5), and the expiry behaviour of a linked key.
