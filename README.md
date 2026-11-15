@@ -14,7 +14,7 @@ and Peal Bidder, and it can be used by any contract on `qorechain-diana`
 | `src/PqAuthSet.sol`, `scripts/pqauthset.ts` | t-of-n ML-DSA-87 signer set: a post-quantum multisig on `PqAuth` | v0.2.0 |
 | `scripts/messaging.ts` | Instructions signed with the sender's hybrid key (QoreSign) and sealed to the recipient's ML-KEM-1024 key (QoreSeal), verified against the sender's key on chain | v0.3.0 |
 | `scripts/rest.ts`, `scripts/rest-proxy.ts` | REST reader for browsers and Node, and a read-only allowlisting proxy (the public REST endpoint sends no CORS headers) | v0.3.0 |
-| `scripts/smart-account.ts` | Linked keys and spending rules (`MsgExecuteEVM`) | After spike S2 |
+| `scripts/smart-account.ts` | Link an agent's key to an owner's account with a spending rule, sign `MsgExecuteEVM` as the agent, relay and decode the outcome | v0.4.0 |
 
 ## ML-DSA-87 authorisation (from `peal-tender/kit/`)
 
@@ -250,13 +250,39 @@ parameters except pagination. `npm run rest-proxy` runs it on
 `127.0.0.1:8787`. A proxy can still lie, so anything that matters is checked
 against chain state (see `verifyMember` and `receiveInstruction`).
 
+## Agents held to the owner's limits: `scripts/smart-account.ts`
+
+```ts
+import { agentLinkProof, linkAgentMsgs, buildAgentCall, relay } from "qore-pq-kit/smart-account";
+
+// agent: prove it holds its key, for this chain and this owner
+const proof = agentLinkProof({ chainId, owner, agentPrivateKey });
+
+// owner: link the key with its rule, in one hybrid-signed transaction
+await broadcast(ownerAccount, linkAgentMsgs({ chainId, owner, proof, expiryUnix, rule: {
+  id: "bidder", perTxLimit: 0n, dailyLimit: 0n, allowedDenoms: [`erc20/${FUSD}`],
+  denomLimits: [{ denom: `erc20/${FUSD}`, perTxLimit: maxBid, dailyLimit: budget }],
+  allowedEvmCalls: [{ target: auction, selector: COMMIT_BID }],
+}}));
+
+// agent signs, relayer broadcasts; success=false is final (the nonce is spent)
+const msg = await buildAgentCall({ rest, chainId, owner, relayer, agentPrivateKey, to: auction, data, gasLimit: 400_000 });
+const { results } = await relay(relayerAccount, [msg]);
+```
+
+The call runs as the owner's 0x address and needs no EVM window on the owner
+(spike S2). The owner's first enabled spending rule bounds it: a call over
+the limit, or to a function not in `allowedEvmCalls`, returns `success =
+false` inside a code-0 transaction, and that result is final. `relay` decodes
+every execution so a code-0 transaction is never read as success.
+
 ## Install
 
 Nothing is published to npm. Pin a git tag.
 
 ```sh
-forge install Adityaakr/qore-pq-kit@v0.3.0     # Solidity
-npm install github:Adityaakr/qore-pq-kit#v0.3.0  # TypeScript
+forge install Adityaakr/qore-pq-kit@v0.4.0     # Solidity
+npm install github:Adityaakr/qore-pq-kit#v0.4.0  # TypeScript
 ```
 
 Remap `qore-pq-kit/=lib/qore-pq-kit/src/` in `foundry.toml`. The TypeScript is

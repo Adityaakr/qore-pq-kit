@@ -2,8 +2,8 @@
 
 Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`) and the
 post-quantum signer set (`src/PqAuthSet.sol`, `scripts/pqauthset.ts`), signed
-and sealed instructions (`scripts/messaging.ts`) and the REST reader and proxy
-(`scripts/rest.ts`). The
+and sealed instructions (`scripts/messaging.ts`), the REST reader and proxy
+(`scripts/rest.ts`) and linked agent keys (`scripts/smart-account.ts`). The
 single-signer library `PqAuth` came from `peal-tender/kit/`; its rules (key read
 live, possession proven, fail closed on empty precompile answers) apply to
 both.
@@ -115,6 +115,30 @@ routes, or carry a user's cookies upstream.
 or the REST node behind it, can lie or go down. Callers check what matters
 against hashes on chain or against the EVM RPC. The proxy has no rate limit;
 host it behind one if it is public.
+
+## Linked agent keys (smart-account)
+
+**Promises (enforced by the chain, observed in spike S2).** A linked agent key
+can only call what the owner's first enabled spending rule allows: calls with
+calldata only to the listed `target/selector` pairs, and value within the
+per-execution and daily limits. Every refused call is final and spends the
+key's nonce. A message cannot be replayed. Only the owner, signing with its
+ML-DSA-87 key, can link, re-rule or revoke the agent's key, so the agent
+cannot raise its own limits.
+
+**Does not promise.**
+- Allowlisting a target trusts every argument of the calls made to it,
+  recipients included (the chain's own warning). Allowlist narrow functions of
+  contracts you trust, such as an auction's `commitBid`.
+- `MsgUpdateSpendingRules` replaces all of the account's rules. A careless
+  re-link can widen or drop limits.
+- ERC-20 limits (`denomLimits` on `erc20/<token>`) have not been tested live
+  yet.
+- The agent's classical key is a hot key. If it is stolen, the thief can spend
+  up to the rule's limits until the owner revokes it. Keep the limits small
+  and the expiry short.
+- A relayer pays for refused and replayed messages alike; anyone with a
+  signed message can make the relayer pay once by racing it.
 
 ## Keys and secrets
 

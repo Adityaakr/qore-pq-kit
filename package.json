@@ -10,7 +10,8 @@
     "./threshold": "./scripts/threshold.ts",
     "./pqauthset": "./scripts/pqauthset.ts",
     "./messaging": "./scripts/messaging.ts",
-    "./rest": "./scripts/rest.ts"
+    "./rest": "./scripts/rest.ts",
+    "./smart-account": "./scripts/smart-account.ts"
   },
   "scripts": {
     "setup": "forge install foundry-rs/forge-std@v1.9.7 --no-git",
