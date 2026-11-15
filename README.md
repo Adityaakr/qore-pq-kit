@@ -11,8 +11,10 @@ and Peal Bidder, and it can be used by any contract on `qorechain-diana`
 | `src/threshold/SealedSlot.sol` | Domain-separated hashes and a one-block keccak cipher for a 32-byte secret only a committee threshold can open, opened by the contract itself | v0.1.0 |
 | `scripts/threshold.ts` | Deals the key, seals each share to one committee member with QoreSeal (ML-KEM-1024 + X25519), opens shares, and checks a member's on-chain keys before sealing to it | v0.1.0 |
 | `src/PqAuth.sol`, `src/IQorePQC.sol`, precompile mocks, account / register / window / pqauth / secrets / probe scripts | ML-DSA-87 authorisation over `pqcKeyStatus` and `pqcVerify`, plus testnet scripts | v0.1.0, from `peal-tender/kit/` with its history |
-| `src/PqAuthSet.sol`, `scripts/pqauthset.ts` | t-of-n ML-DSA-87 signer set: a post-quantum multisig on `PqAuth` | v0.1.0 |
-| `scripts/messaging.ts`, `scripts/rest.ts`, `scripts/smart-account.ts` | Signed and sealed instructions; REST reader with a proxy; linked keys and spending rules | Later |
+| `src/PqAuthSet.sol`, `scripts/pqauthset.ts` | t-of-n ML-DSA-87 signer set: a post-quantum multisig on `PqAuth` | v0.2.0 |
+| `scripts/messaging.ts` | Instructions signed with the sender's hybrid key (QoreSign) and sealed to the recipient's ML-KEM-1024 key (QoreSeal), verified against the sender's key on chain | v0.3.0 |
+| `scripts/rest.ts`, `scripts/rest-proxy.ts` | REST reader for browsers and Node, and a read-only allowlisting proxy (the public REST endpoint sends no CORS headers) | v0.3.0 |
+| `scripts/smart-account.ts` | Linked keys and spending rules (`MsgExecuteEVM`) | After spike S2 |
 
 ## ML-DSA-87 authorisation (from `peal-tender/kit/`)
 
@@ -205,17 +207,62 @@ TypeScript writes. `npm run probe:threshold` runs the Solidity libraries on the
 live testnet against the same vectors with a single `eth_call` (no account, no
 deployment, no gas).
 
+## Signed and sealed instructions: `scripts/messaging.ts`
+
+```ts
+import { signInstruction, sealInstruction, receiveInstruction, isoSeconds, randomNonce } from "qore-pq-kit/messaging";
+
+// sender (the owner)
+const signed = signInstruction({
+  fields: { chainId: "qorechain-diana", from: owner, to: agent, purpose: "peal-bidder/mandate/v1",
+            nonce: randomNonce(), issuedAt: isoSeconds(now), expiresAt: isoSeconds(later), body: JSON.stringify(mandate) },
+  classicalKey, pqKey,
+});
+const envelope = sealInstruction(signed, agentRecipient); // ML-KEM-1024 + X25519
+
+// recipient (the agent)
+const fields = await receiveInstruction({ envelope, keys: agentSealKeys, client /* EVM RPC */, expect: {
+  chainId: "qorechain-diana", to: agent, purpose: "peal-bidder/mandate/v1", from: owner, seen: (f, n) => used.has(`${f}/${n}`),
+}});
+```
+
+The signed bytes are one header line and a JSON array of the fields in a
+fixed order, so there is one encoding. The signature is a QoreSign hybrid
+message signature, and `verifyInstruction` requires both halves
+(`requirePq: true`). `receiveInstruction` reads the sender's ML-DSA-87 key
+from the chain by `eth_call` (no REST), and refuses an instruction that is
+forged, altered, signed by a key the chain does not hold, expired,
+future-dated, too long-lived, replayed (the caller's `seen`), or meant for
+another chain, recipient, purpose or sender. Cheap checks run before any
+network call. The envelope's AAD binds the recipient and the purpose.
+
+## Reading REST from a browser: `scripts/rest.ts`
+
+The public REST endpoint sends no CORS headers (spike S4), so a page reads it
+through a proxy. `createRest({ base })` is a small reader for the routes the
+apps need: PQC account, KEM key, EVM window, balances, account sequence,
+abstract-account views and transactions. It decodes them into typed values,
+and it only issues GETs to an allowlist of read routes. `handleRestProxy(request,
+{ upstream, prefix })` is the matching proxy as a fetch handler for a Worker,
+Deno, Bun or Node: it answers CORS preflights, forwards only allowlisted GETs,
+forwards no request headers (no cookies or credentials), and drops all query
+parameters except pagination. `npm run rest-proxy` runs it on
+`127.0.0.1:8787`. A proxy can still lie, so anything that matters is checked
+against chain state (see `verifyMember` and `receiveInstruction`).
+
 ## Install
 
 Nothing is published to npm. Pin a git tag.
 
 ```sh
-forge install Adityaakr/qore-pq-kit@v0.1.0     # Solidity
-npm install github:Adityaakr/qore-pq-kit#v0.1.0  # TypeScript
+forge install Adityaakr/qore-pq-kit@v0.3.0     # Solidity
+npm install github:Adityaakr/qore-pq-kit#v0.3.0  # TypeScript
 ```
 
 Remap `qore-pq-kit/=lib/qore-pq-kit/src/` in `foundry.toml`. The TypeScript is
-shipped as source (`.ts`), for Vite, tsx or another bundler.
+shipped as source (`.ts`), for Vite, tsx or another bundler. Browser-safe entry
+points: `qore-pq-kit/threshold`, `/pqauthset`, `/messaging` and `/rest`; the
+root entry (`qore-pq-kit`) also loads the Node-only account and secrets scripts.
 `@qorechain/*` packages are pinned to exact versions.
 
 ## Develop

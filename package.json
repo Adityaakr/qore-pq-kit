@@ -7,7 +7,10 @@
   "license": "Apache-2.0",
   "exports": {
     ".": "./scripts/index.ts",
-    "./threshold": "./scripts/threshold.ts"
+    "./threshold": "./scripts/threshold.ts",
+    "./pqauthset": "./scripts/pqauthset.ts",
+    "./messaging": "./scripts/messaging.ts",
+    "./rest": "./scripts/rest.ts"
   },
   "scripts": {
     "setup": "forge install foundry-rs/forge-std@v1.9.7 --no-git",
@@ -16,7 +19,8 @@
     "pq": "tsx scripts/cli.ts",
     "test:ts": "vitest run",
     "vectors": "tsx scripts/vectors.ts",
-    "probe:threshold": "forge build && tsx scripts/threshold-probe.ts"
+    "probe:threshold": "forge build && tsx scripts/threshold-probe.ts",
+    "rest-proxy": "tsx scripts/rest-proxy.ts"
   },
   "dependencies": {
     "@cosmjs/proto-signing": "^0.39.0",

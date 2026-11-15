@@ -1,7 +1,9 @@
 # Threat model: qore-pq-kit
 
 Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`) and the
-post-quantum signer set (`src/PqAuthSet.sol`, `scripts/pqauthset.ts`). The
+post-quantum signer set (`src/PqAuthSet.sol`, `scripts/pqauthset.ts`), signed
+and sealed instructions (`scripts/messaging.ts`) and the REST reader and proxy
+(`scripts/rest.ts`). The
 single-signer library `PqAuth` came from `peal-tender/kit/`; its rules (key read
 live, possession proven, fail closed on empty precompile answers) apply to
 both.
@@ -81,6 +83,38 @@ inactive precompile reverts rather than reading as a verdict.
 - `setMembers` checks only that the new members have usable keys now.
 - In the hackathon demo, one owner holds all three member keys as separate
   accounts (decision D9 and D3), and says so.
+
+## Messaging
+
+**Promises.** An instruction accepted by `verifyInstruction` was signed by both
+the classical key that controls `from` and the ML-DSA-87 key the caller
+supplies, which `verifyInstructionWithChain` reads from `pqcKeyStatus` on
+chain. A stolen classical key alone cannot produce one. It is for this chain,
+recipient and purpose, is within its validity window, and has a nonce the
+caller has not marked used. Sealed instructions can be opened only with the
+recipient's ML-KEM-1024 (and, in hybrid mode, X25519) keys, and only under the
+same recipient and purpose.
+
+**Does not promise.**
+- Replay protection needs the caller to remember used nonces (`seen`) for as
+  long as an instruction can be valid; the default maximum lifetime is 7 days.
+- The validity window trusts the recipient's clock.
+- `openInstruction` returns an unverified instruction; acting on it before
+  `verifyInstruction` is a bug in the caller.
+- The sender's key is read when the instruction is checked. An instruction
+  signed before the sender rotated its key stops verifying afterwards.
+
+## REST reader and proxy
+
+**Promises.** The client sends only GETs to allowlisted read routes. The
+proxy forwards only those, with no request headers and only pagination query
+parameters, so it cannot be used to broadcast transactions, reach other
+routes, or carry a user's cookies upstream.
+
+**Does not promise.** Anything about the truth of what it returns. A proxy,
+or the REST node behind it, can lie or go down. Callers check what matters
+against hashes on chain or against the EVM RPC. The proxy has no rate limit;
+host it behind one if it is public.
 
 ## Keys and secrets
 
