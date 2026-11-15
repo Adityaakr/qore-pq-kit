@@ -52,3 +52,11 @@ and smart-account scripts"). It wrote:
 
 It read Peal's code read-only to credit the design rules it follows, and copied
 no Peal file. No transaction was sent.
+
+### 16 November 2026: the drill kit moves in (this worker)
+
+After the owner merged the drill PR in peal-tender, the worker ran
+`git subtree split --prefix=kit` on peal-tender `main` and merged the result
+here with `--allow-unrelated-histories`, so the kit's fest-dated commit is kept.
+It changed none of the kit's files; it resolved only the shared config and the
+README, and tagged the result `v0.1.0`.
