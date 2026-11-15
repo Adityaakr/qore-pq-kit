@@ -60,3 +60,14 @@ After the owner merged the drill PR in peal-tender, the worker ran
 here with `--allow-unrelated-histories`, so the kit's fest-dated commit is kept.
 It changed none of the kit's files; it resolved only the shared config and the
 README, and tagged the result `v0.1.0`.
+
+### 16 November 2026: PqAuthSet (this worker)
+
+It wrote `src/PqAuthSet.sol` (t-of-n ML-DSA-87 signer set on `PqAuth`, owner
+decision D9) with 36 Foundry tests, among them replay, wrong member, wrong
+order, mixing single-signer and quorum signatures, membership changes, key
+rotation on chain and fuzzed quorums; `scripts/pqauthset.ts` with its vitest
+suite; and `vectors/pqauthset.json`, checked from both sides. It folded the
+action under a set domain so that a single-signer signature and a quorum share
+can never be swapped for each other, a choice made by the worker and recorded
+here for the owner's review.
