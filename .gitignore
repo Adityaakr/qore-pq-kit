@@ -1,0 +1,11 @@
+node_modules/
+out/
+cache/
+broadcast/*/dry-run/
+lib/
+.env
+.env.*
+!.env.example
+*.secret
+*.mnemonic
+.claude/
