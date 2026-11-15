@@ -15,7 +15,7 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | Open: needs funded accounts |
 | S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | Cards: **settled offline** (16 Nov). Bundle and registration: open |
 | S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
-| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | Open: owner's dashboard sign-in |
+| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | Open: owner's dashboard sign-in. The drill worker saw 90 QOR per claim and no fest-token transfer arriving (peal-tender `kit/README.md`); the kit has `convert-fusd` (`MsgConvertCoin`) for the bank-coin case |
 | S6 | Gas of `pqcVerify` at 256-byte messages | **Settled** (16 Nov): about 92k gas for the precompile; about 318k for a whole transaction carrying one signature |
 
 ## K1. modexp and the threshold libraries on the live chain (16 November 2026)
