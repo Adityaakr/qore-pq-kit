@@ -74,3 +74,13 @@ suite; and `vectors/pqauthset.json`, checked from both sides. It folded the
 action under a set domain so that a single-signer signature and a quorum share
 can never be swapped for each other, a choice made by the worker and recorded
 here for the owner's review.
+
+### 16 November 2026: messaging and REST (this worker)
+
+It wrote `scripts/messaging.ts` (instructions signed with QoreSign and sealed
+with QoreSeal, verified against the sender's ML-DSA key read from the chain),
+`scripts/rest.ts` (a typed REST reader and a read-only allowlisting proxy) and
+`scripts/rest-proxy.ts`. It tested them with vitest, including forgery, a
+stolen classical key, tampering, expiry, replay and envelope re-filing. It ran
+the proxy locally against the public testnet: an allowed read came back with
+CORS headers and a POST was refused. No transaction was sent.
