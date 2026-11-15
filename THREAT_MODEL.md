@@ -1,8 +1,10 @@
 # Threat model: qore-pq-kit
 
 Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`). The
-ML-DSA-87 authorisation library (`PqAuth`) arrives with v0.1.0 and brings its
-own section.
+single-signer ML-DSA-87 library `PqAuth` came unchanged from `peal-tender/kit/`;
+peal-tender's own `THREAT_MODEL.md` covers it. Its rules (key read live from
+`pqcKeyStatus`, possession proven, fail closed on an empty precompile answer)
+are confirmed live in `docs/spikes.md` (S6).
 
 ## What the threshold module promises
 

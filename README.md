@@ -7,9 +7,9 @@ and Peal Bidder, and it can be used by any contract on `qorechain-diana`
 
 | Module | What it is | Status |
 | --- | --- | --- |
-| `src/threshold/Shamir.sol` | Recombines t-of-n Shamir shares over F_P, P = 2^255 - 19, with one modular inverse through the modexp precompile | **This release** |
-| `src/threshold/SealedSlot.sol` | Domain-separated hashes and a one-block keccak cipher for a 32-byte secret only a committee threshold can open, opened by the contract itself | **This release** |
-| `scripts/threshold.ts` | Deals the key, seals each share to one committee member with QoreSeal (ML-KEM-1024 + X25519), opens shares, and checks a member's on-chain keys before sealing to it | **This release** |
+| `src/threshold/Shamir.sol` | Recombines t-of-n Shamir shares over F_P, P = 2^255 - 19, with one modular inverse through the modexp precompile | v0.1.0 |
+| `src/threshold/SealedSlot.sol` | Domain-separated hashes and a one-block keccak cipher for a 32-byte secret only a committee threshold can open, opened by the contract itself | v0.1.0 |
+| `scripts/threshold.ts` | Deals the key, seals each share to one committee member with QoreSeal (ML-KEM-1024 + X25519), opens shares, and checks a member's on-chain keys before sealing to it | v0.1.0 |
 | `src/PqAuth.sol`, `src/IQorePQC.sol`, precompile mocks, account / register / window / pqauth / secrets / probe scripts | ML-DSA-87 authorisation over `pqcKeyStatus` and `pqcVerify`, plus testnet scripts | v0.1.0, from `peal-tender/kit/` with its history |
 | `src/PqAuthSet.sol` | t-of-n ML-DSA-87 signer set | Next |
 | `scripts/messaging.ts`, `scripts/rest.ts`, `scripts/smart-account.ts` | Signed and sealed instructions; REST reader with a proxy; linked keys and spending rules | Later |
@@ -173,8 +173,8 @@ deployment, no gas).
 Nothing is published to npm. Pin a git tag.
 
 ```sh
-forge install Adityaakr/qore-pq-kit@v0.1.0-threshold.1     # Solidity
-npm install github:Adityaakr/qore-pq-kit#v0.1.0-threshold.1  # TypeScript
+forge install Adityaakr/qore-pq-kit@v0.1.0     # Solidity
+npm install github:Adityaakr/qore-pq-kit#v0.1.0  # TypeScript
 ```
 
 Remap `qore-pq-kit/=lib/qore-pq-kit/src/` in `foundry.toml`. The TypeScript is
