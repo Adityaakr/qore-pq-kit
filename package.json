@@ -1,0 +1,30 @@
+{
+  "name": "qore-pq-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Post-quantum authorisation for QoreChain EVM contracts: a Solidity library over pqcKeyStatus/pqcVerify with precompile mocks, and scripts for hybrid transactions, ML-DSA-87 key registration and scoped EVM windows.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./scripts/index.ts"
+  },
+  "scripts": {
+    "setup": "forge install foundry-rs/forge-std@v1.9.7 --no-git",
+    "test": "forge test",
+    "typecheck": "tsc --noEmit",
+    "pq": "tsx scripts/cli.ts"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.39.0",
+    "@qorechain/evm": "0.14.0",
+    "@qorechain/sdk": "0.14.0",
+    "viem": "^2.21.0",
+    "@cosmjs/proto-signing": "^0.39.0",
+    "cosmjs-types": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3"
+  }
+}
