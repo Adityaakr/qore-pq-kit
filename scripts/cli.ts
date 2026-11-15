@@ -8,6 +8,9 @@ import { rehearse } from "./rehearse.ts";
 import { convertTo, swapQorFor } from "./fest.ts";
 import { FUSD_DENOM } from "./qore.ts";
 import { closeWindow, openWindow } from "./window.ts";
+import { recipientCard, registerKem } from "./kem.ts";
+import { fund } from "./fund.ts";
+import { loadAccount } from "./qore.ts";
 
 const commands: Record<string, (...args: string[]) => Promise<void>> = {
   "new-account": (name?: string) => newAccount(name),
@@ -39,6 +42,22 @@ const commands: Record<string, (...args: string[]) => Promise<void>> = {
   },
   "close-window": async (name = "drill") => {
     await closeWindow(name);
+  },
+  // register-kem <account> [index] [--replace]   (publish the ML-KEM-1024 key derived from the mnemonic)
+  "register-kem": async (name = "drill", ...rest: string[]) => {
+    const index = Number(rest.find((a) => /^\d+$/.test(a)) ?? "0");
+    const r = await registerKem(name, { index, replace: rest.includes("--replace") });
+    console.log(`${r.action}: ML-KEM key sha3 ${r.mlkemKeySha3}${r.txHash ? `, tx ${r.txHash}` : ""}`);
+  },
+  // card <account> [index]   (print the signed QoreSeal recipient card as JSON, with its hashes; public data)
+  card: async (name = "drill", index = "0") => {
+    const c = recipientCard(await loadAccount(name), { index: Number(index) });
+    console.log(JSON.stringify({ card: c.card, cardHash: c.cardHash, mlkemKeySha3: c.mlkemKeySha3 }, null, 2));
+  },
+  // fund <from-account> <to-account|qor1…|0x…> <QOR>
+  fund: async (from = "", to = "", amount = "") => {
+    if (!from || !to || !amount) throw new Error("usage: fund <from-account> <to-account|qor1…|0x…> <QOR>");
+    await fund(from, to, amount);
   },
 };
 

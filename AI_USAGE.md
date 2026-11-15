@@ -106,3 +106,12 @@ limit, off target and a replay. It recorded each outcome and transaction hash,
 then wrote `scripts/smart-account.ts` from what worked, and re-ran the spike
 through the module to prove it live. No drill account or drill contract was
 used.
+
+### 16 November 2026: register-kem, card and fund (this worker)
+
+It added the three commands the design lists for the kit's CLI. `register-kem`
+publishes an account's ML-KEM-1024 key and refuses to replace a different
+one by accident; `card` signs a QoreSeal recipient card; `fund` splits test
+QOR with a cap and a floor. It also added `QORE_SECRETS_DIR`, so each
+repository keeps its keys in its own directory. It ran each command on the
+spike accounts (one 0.1 QOR transfer between two of them).

@@ -66,7 +66,7 @@ every failure mode.
 
 | Command (`npm run pq -- …`) | What it does |
 | --- | --- |
-| `new-account <name>` | new mnemonic into `~/.qore-drill/<name>.env` (0600); prints addresses only |
+| `new-account <name>` | new mnemonic into `~/.qore-drill/<name>.env`, or `$QORE_SECRETS_DIR/<name>.env` when set (0600); prints addresses only |
 | `status <name>` | balances, PQ key status, EVM window |
 | `register <name>` | registers the ML-DSA-87 key with a proof of possession (the one classically-signed message); never registers blind |
 | `open-window <name> <blocks> <txs> <gasPerTx> [targets]` | `MsgOpenEVMWindow`, scoped to `targets` when given |
@@ -74,6 +74,9 @@ every failure mode.
 | `probe <name>` | live, read-only probes of both precompiles and of `PqAuth.sol` itself (via `eth_call` of `test/live/PqAuthProbe.sol`'s creation code) |
 | `rehearse <name> [contract] [token]` | the Q-Day Drill attacker: tries everything the classical key alone can do, and reports each answer and any fee charged |
 | `swap-fusd`, `convert-fusd` | AMM swap to fUSD, and `MsgConvertCoin` of a fest bank coin straight into a contract's ERC-20 balance |
+| `register-kem <name> [index] [--replace]` | publishes the ML-KEM-1024 key derived from the account's mnemonic (hybrid-signed `MsgRegisterKEMKey`); does nothing if that key is already published, and refuses to replace a different one without `--replace` |
+| `card <name> [index]` | prints the account's signed QoreSeal recipient card as JSON, with the `cardHash` and `mlkemKeySha3` a registry commits to (public data only) |
+| `fund <from> <to-name\|qor1…\|0x…> <QOR>` | hybrid-signed native send from a bank account; capped at 50 QOR, and keeps 1 QOR in the sender |
 
 Library modules: `qore.ts` (network, accounts, hybrid broadcast), `window.ts`,
 `evm.ts` (EVM sends with node-side gas estimation), `pqauth.ts` (`authMessage`,

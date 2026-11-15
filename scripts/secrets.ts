@@ -2,14 +2,19 @@
  * secrets.ts - load and create the account secrets file.
  *
  * The secrets live OUTSIDE the repository, in a file of KEY=value lines with
- * 0600 permissions (default: ~/.qore-drill/<name>.env). Nothing in this kit
+ * 0600 permissions (default: ~/.qore-drill/<name>.env, or $QORE_SECRETS_DIR/<name>.env). Nothing in this kit
  * prints a mnemonic or a private key; scripts print addresses only.
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-export const DEFAULT_SECRETS_DIR = join(homedir(), ".qore-drill");
+/**
+ * Where named secrets files live: QORE_SECRETS_DIR when set (each repository
+ * that uses the kit keeps its own, e.g. ~/.qore-peal-sealed-auction), else
+ * ~/.qore-drill, the directory the drill used.
+ */
+export const DEFAULT_SECRETS_DIR = process.env.QORE_SECRETS_DIR?.trim() || join(homedir(), ".qore-drill");
 
 /** Path of a named secrets file, or QORE_SECRETS_FILE when it is set. */
 export function secretsPath(name = "drill"): string {
