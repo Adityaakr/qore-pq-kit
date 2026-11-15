@@ -10,10 +10,56 @@
  *
  * The contract wants the signers in strictly ascending address order;
  * `orderShares` sorts them.
+ *
+ * Browser-safe and light: it builds the PqAuth message itself (the same bytes
+ * as `pqauth.ts` `authMessage`, checked by a test and by vectors/pqauthset.json)
+ * and signs with QoreSign, so it does not pull in the whole QoreChain SDK.
  */
-import { type PqcKeypair } from "@qorechain/sdk";
-import { encodeAbiParameters, keccak256, toBytes, type Address, type Hex } from "viem";
-import { authMessage, signAuth, type AuthFields } from "./pqauth.ts";
+import { pqSign, pqVerify } from "@qorechain/qoresign";
+import { encodeAbiParameters, hexToBytes, keccak256, toBytes, toHex, type Address, type Hex } from "viem";
+
+export const PQ_AUTH_DOMAIN = keccak256(toBytes("qore-pq-kit.PqAuth.v1"));
+
+/** The fields of a PqAuth message (as in pqauth.ts). */
+export interface AuthFields {
+  chainId: bigint;
+  verifier: Address;
+  signer: Address;
+  action: Hex;
+  nonce: bigint;
+  deadline: bigint;
+  argsHash: Hex;
+}
+
+/** Any ML-DSA-87 key pair: the SDK's `PqcKeypair` and QoreSign's `PqKeyPair` both fit. */
+export interface MlDsaKeypair {
+  publicKey: Uint8Array;
+  secretKey: Uint8Array;
+}
+
+/** abi.encode(DOMAIN, chainId, verifier, signer, action, nonce, deadline, argsHash): 256 bytes. */
+export function authMessage(f: AuthFields): Hex {
+  return encodeAbiParameters(
+    [
+      { type: "bytes32" },
+      { type: "uint256" },
+      { type: "address" },
+      { type: "address" },
+      { type: "bytes32" },
+      { type: "uint256" },
+      { type: "uint256" },
+      { type: "bytes32" },
+    ],
+    [PQ_AUTH_DOMAIN, f.chainId, f.verifier, f.signer, f.action, f.nonce, f.deadline, f.argsHash],
+  );
+}
+
+function signAuth(keypair: MlDsaKeypair, f: AuthFields): Hex {
+  const m = hexToBytes(authMessage(f));
+  const sig = pqSign(keypair.secretKey, m);
+  if (!pqVerify(keypair.publicKey, m, sig)) throw new Error("local ML-DSA-87 verification failed");
+  return toHex(sig);
+}
 
 export const QUORUM_DOMAIN = keccak256(toBytes("qore-pq-kit.PqAuthSet.quorum.v1"));
 export const ANY_DOMAIN = keccak256(toBytes("qore-pq-kit.PqAuthSet.any.v1"));
@@ -45,12 +91,12 @@ export interface Share {
 }
 
 /** Sign one member's quorum share (and check it locally). */
-export function signQuorumShare(keypair: PqcKeypair, member: Address, f: SetFields): Share {
+export function signQuorumShare(keypair: MlDsaKeypair, member: Address, f: SetFields): Share {
   return { signer: member, signature: signAuth(keypair, { ...f, signer: member, action: quorumAction(f.action) }) };
 }
 
 /** Sign a single-member action for `authorizeAny`. */
-export function signAnyAction(keypair: PqcKeypair, member: Address, f: SetFields): Share {
+export function signAnyAction(keypair: MlDsaKeypair, member: Address, f: SetFields): Share {
   return { signer: member, signature: signAuth(keypair, { ...f, signer: member, action: anyAction(f.action) }) };
 }
 

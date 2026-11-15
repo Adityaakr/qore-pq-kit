@@ -11,11 +11,11 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | # | Question | Status |
 | --- | --- | --- |
 | K1 | Does the modexp precompile (`0x05`) work, and do `Shamir.sol` / `SealedSlot.sol` give the vectors' answers on the real chain? | **Settled: yes** (16 Nov) |
-| S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | Open: needs a funded throwaway account. The shape is confirmed (S6) |
+| S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | **Settled** (16 Nov): yes. A registration without a proof is still accepted and reads `false` in both places, so `PqAuth` refuses it |
 | S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | Open: needs funded accounts |
-| S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | Cards: **settled offline** (16 Nov). Bundle and registration: open |
+| S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | **Settled** (16 Nov): cards interoperate; a hybrid-signed `MsgRegisterKEMKey` works; `verifyMember` passes against the live chain; the browser entry points bundle to 162 KB with no Node built-ins |
 | S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
-| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | Open: owner's dashboard sign-in. The drill worker saw 90 QOR per claim and no fest-token transfer arriving (peal-tender `kit/README.md`); the kit has `convert-fusd` (`MsgConvertCoin`) for the bank-coin case |
+| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | **Partly settled** (16 Nov): fest tokens arrive as bank coins `erc20:0x…`, and ERC-20 `balanceOf` reads 0, so `MsgConvertCoin` is needed. A claim to a scripted address failed on the faucet side; a retry is pending with the owner |
 | S6 | Gas of `pqcVerify` at 256-byte messages | **Settled** (16 Nov): about 92k gas for the precompile; about 318k for a whole transaction carrying one signature |
 
 ## K1. modexp and the threshold libraries on the live chain (16 November 2026)
@@ -125,3 +125,73 @@ eth_estimateGas, direct transaction to pqcVerify (7684 bytes calldata): 317680
   four-value shape `(bool, uint8, bytes, bool)` with a 2,592-byte key and the
   fourth word `true`. Whether that word means "possession proven" for a fresh
   registration is spike S1.
+
+## S1. What the fourth word of `pqcKeyStatus` means (16 November 2026)
+
+**Run:** `npx tsx scripts/spikes/s1-s3.ts`, with throwaway spike accounts
+(never the drill accounts). The `bank` account was funded once, with the
+owner's permission, by a 10 QOR native transfer from the drill account (tx
+`4A2FC8014D375CCFB17BB3037671FF34331F8D04CA0227EA9641851CFF7EC5CA`).
+
+| Account | Registration | REST `possession_proven` | `pqcKeyStatus` fourth word | Tx |
+| --- | --- | --- | --- | --- |
+| bank `qor1vptmxqamgpum97lsstqul30zc3lmkfmskfpdg0` | `MsgRegisterPQCKeyV2` **with** a proof of possession, classically signed | `true` | `true` | `0F696A5FDDFE54AF056BA0C40FAC50ED9A21F61123B56789575CB5DB58240AD9` |
+| s1 `qor1epp8vnfm8fstkkczrs280hgqfcvf2x0fpkqvgr` | the same message **without** a proof | `false` | `false` | `5C4DF3FAB576FC31FB3571F2C631103C1AF9699CC914B99865822440FCDA24E3` |
+
+Both registrations report `registered=true`, algorithm 1, a 2,592-byte key and
+`key_type: hybrid`, and each was charged 150,000 uqor.
+
+**Conclusions:**
+
+- The fourth word is "possession proven", exactly as REST reports it. `PqAuth`
+  and `threshold.ts` `readPqKey` are right to read it as that.
+- The chain still **accepts** a registration without a proof on
+  `qorechain-diana` (the SDK documents the field as "verified when present;
+  not required yet"). So "has a registered ML-DSA key" is not enough on this
+  chain, and any check must also require the possession flag. `PqAuth.keyOf`,
+  `PqAuthSet` (through it) and `verifyMember` all do.
+
+## S3 (live part). KEM registration and `verifyMember` on the real chain (16 November 2026)
+
+**Run:** the same script. `bank` derived its QoreSeal keys from its mnemonic
+(`deriveSealKeys`, index 0), sent a hybrid-signed `MsgRegisterKEMKey`
+(`msg.pqc.registerKemKey`, algorithm 2), signed a QoreSeal recipient card, and
+ran `verifyMember` with the real EVM RPC (`pqcKeyStatus`) and the real REST
+endpoint.
+
+**Printed:**
+
+```
+MsgRegisterKEMKey: tx 4B8DB9F497AD776B3505817F42D36136FA1726B8E748491E620C1DFD8C23F325
+fee charged: 150000 uqor
+REST kem: algorithm=2 bytes=1568 height=10161226 sha3 matches local key: true
+verifyMember against the live chain: OK
+```
+
+**Bundle:** `npm run check:bundle` bundles the browser entry points
+(`threshold`, `pqauthset`, `messaging`, `rest`) with esbuild for
+`platform=browser`. A Node built-in would fail the build. The bundle is
+162 KB minified. It was 2.7 MB before `pqauthset.ts` stopped importing the
+whole SDK through `pqauth.ts`. CI runs the check. Vite uses the same resolver
+rules, so the auction's web app can import these entry points.
+
+**Conclusion:** R4 is retired. QoreSeal 0.1.0 works live for KEM registration,
+cards and member checks, and in a browser bundle.
+
+## S5. How the faucet's fest tokens arrive (16 November 2026)
+
+**Evidence:** the owner's dashboard faucet claim, read-only. REST
+`/cosmos/bank/v1beta1/balances/qor1enw5clqhgzn08wgnd0mhxm90uwfj2nfvpvj6sg`
+lists `erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA` = 1,000,000,000
+(1,000 fUSD), `erc20:0x0229…1c28` = 0.5 fETH, `erc20:0x4604…451A` = 0.02 fBTC,
+and 9,805,000 uqor. On the EVM side (`cast call <token> balanceOf(0xccdd4c7c1740a6f3b9136bf7736cafe393254d2c)`)
+all three tokens read **0**. The native balance does show as 9.805e18 wei.
+Each token reports the expected `symbol` and `decimals` (fUSD 6, fETH 18,
+fBTC 8).
+
+**Conclusion:** fest tokens land as bank coins, not ERC-20 balances. A
+contract (auction escrow, vault) can only pull them after a `MsgConvertCoin`
+into the holder's ERC-20 balance; the kit's `convert-fusd` does that. The
+spending-rule denom for fUSD in the Bidder must be checked against which side
+the agent spends from (spike S2). Whether a dashboard claim can target a
+scripted address is still open: the first attempt failed on the faucet side.

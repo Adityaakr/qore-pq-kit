@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { pqcVerify, generatePqcKeypair } from "@qorechain/sdk";
 import { hexToBytes, type Address, type Hex } from "viem";
-import { actionId } from "../scripts/pqauth.ts";
-import { anyAction, anyMessage, orderShares, quorumAction, quorumMessage, signQuorumShare } from "../scripts/pqauthset.ts";
+import { actionId, authMessage as kitAuthMessage } from "../scripts/pqauth.ts";
+import { anyAction, anyMessage, authMessage, orderShares, quorumAction, quorumMessage, signQuorumShare } from "../scripts/pqauthset.ts";
 import { PQAUTHSET_VECTORS_PATH, pqAuthSetVectorsText } from "../scripts/vectors.ts";
 
 const V = JSON.parse(readFileSync(join(import.meta.dirname, "..", "vectors", "pqauthset.json"), "utf8"));
@@ -23,6 +23,11 @@ describe("PqAuthSet messages", () => {
     expect(quorumMessage(f, V.member)).toBe(V.quorumMessage);
     expect(anyMessage(f, V.member)).toBe(V.anyMessage);
     expect(hexToBytes(V.quorumMessage).length).toBe(256);
+  });
+
+  it("builds exactly the bytes pqauth.ts builds", () => {
+    const f = { chainId: 9800n, verifier: V.verifier as Address, signer: V.member as Address, action: actionId("A.b"), nonce: 3n, deadline: 99n, argsHash: V.argsHash as Hex };
+    expect(authMessage(f)).toBe(kitAuthMessage(f));
   });
 
   it("signs shares that verify, and orders them ascending", () => {

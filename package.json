@@ -20,7 +20,8 @@
     "test:ts": "vitest run",
     "vectors": "tsx scripts/vectors.ts",
     "probe:threshold": "forge build && tsx scripts/threshold-probe.ts",
-    "rest-proxy": "tsx scripts/rest-proxy.ts"
+    "rest-proxy": "tsx scripts/rest-proxy.ts",
+    "check:bundle": "esbuild test-ts/bundle/entry.ts --bundle --platform=browser --format=esm --minify --outfile=out/bundle/kit.js"
   },
   "dependencies": {
     "@cosmjs/proto-signing": "^0.39.0",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
+    "esbuild": "0.28.2",
     "qoresign-0.1.0": "npm:@qorechain/qoresign@0.1.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.3",

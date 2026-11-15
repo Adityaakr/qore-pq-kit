@@ -84,3 +84,15 @@ with QoreSeal, verified against the sender's ML-DSA key read from the chain),
 stolen classical key, tampering, expiry, replay and envelope re-filing. It ran
 the proxy locally against the public testnet: an allowed read came back with
 CORS headers and a POST was refused. No transaction was sent.
+
+### 16 November 2026: spikes S1, S3 and S5 (this worker)
+
+**Owner decision:** fund the spike accounts with one 10 QOR transfer from the
+drill account, as a one-time exception, leaving at least 5 QOR there. The
+worker made exactly that transfer, a plain native send, after checking the
+sender address, the amount and the balance left. Then, on throwaway accounts,
+it registered two ML-DSA keys (one with a proof of possession, one without)
+and one ML-KEM key, and ran `verifyMember` against the live chain. The owner
+supplied the faucet evidence for S5, and the worker checked the EVM side
+read-only. It also cut `pqauthset.ts` loose from the SDK so the browser
+bundle fell from 2.7 MB to 162 KB.
