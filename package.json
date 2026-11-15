@@ -1,0 +1,38 @@
+{
+  "name": "qore-pq-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Post-quantum building blocks for QoreChain EVM apps: ML-DSA-87 authorisation, ML-KEM-1024-sealed threshold key shares, and testnet scripts.",
+  "license": "Apache-2.0",
+  "exports": {
+    "./threshold": "./scripts/threshold.ts"
+  },
+  "scripts": {
+    "setup": "forge install foundry-rs/forge-std@v1.9.7 --no-git",
+    "test": "forge test",
+    "test:ts": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "vectors": "tsx scripts/vectors.ts",
+    "probe:threshold": "forge build && tsx scripts/threshold-probe.ts"
+  },
+  "dependencies": {
+    "@cosmjs/proto-signing": "^0.39.0",
+    "@cosmjs/stargate": "^0.39.0",
+    "@noble/hashes": "2.4.0",
+    "@qorechain/evm": "0.14.0",
+    "@qorechain/qoreseal": "0.1.0",
+    "@qorechain/qoresign": "0.2.0",
+    "@qorechain/sdk": "0.14.0",
+    "@scure/base": "2.4.0",
+    "cosmjs-types": "^0.11.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "qoresign-0.1.0": "npm:@qorechain/qoresign@0.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3",
+    "vitest": "3.2.4"
+  }
+}
