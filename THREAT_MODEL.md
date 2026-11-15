@@ -4,7 +4,7 @@ Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`). The
 single-signer ML-DSA-87 library `PqAuth` came unchanged from `peal-tender/kit/`;
 peal-tender's own `THREAT_MODEL.md` covers it. Its rules (key read live from
 `pqcKeyStatus`, possession proven, fail closed on an empty precompile answer)
-are confirmed live in `docs/spikes.md` (S6).
+were checked live by the drill worker (peal-tender `kit/README.md`).
 
 ## What the threshold module promises
 
