@@ -6,13 +6,15 @@
   "description": "Post-quantum building blocks for QoreChain EVM apps: ML-DSA-87 authorisation, ML-KEM-1024-sealed threshold key shares, and testnet scripts.",
   "license": "Apache-2.0",
   "exports": {
+    ".": "./scripts/index.ts",
     "./threshold": "./scripts/threshold.ts"
   },
   "scripts": {
     "setup": "forge install foundry-rs/forge-std@v1.9.7 --no-git",
     "test": "forge test",
-    "test:ts": "vitest run",
     "typecheck": "tsc --noEmit",
+    "pq": "tsx scripts/cli.ts",
+    "test:ts": "vitest run",
     "vectors": "tsx scripts/vectors.ts",
     "probe:threshold": "forge build && tsx scripts/threshold-probe.ts"
   },
