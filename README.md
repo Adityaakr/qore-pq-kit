@@ -11,7 +11,7 @@ and Peal Bidder, and it can be used by any contract on `qorechain-diana`
 | `src/threshold/SealedSlot.sol` | Domain-separated hashes and a one-block keccak cipher for a 32-byte secret only a committee threshold can open, opened by the contract itself | v0.1.0 |
 | `scripts/threshold.ts` | Deals the key, seals each share to one committee member with QoreSeal (ML-KEM-1024 + X25519), opens shares, and checks a member's on-chain keys before sealing to it | v0.1.0 |
 | `src/PqAuth.sol`, `src/IQorePQC.sol`, precompile mocks, account / register / window / pqauth / secrets / probe scripts | ML-DSA-87 authorisation over `pqcKeyStatus` and `pqcVerify`, plus testnet scripts | v0.1.0, from `peal-tender/kit/` with its history |
-| `src/PqAuthSet.sol` | t-of-n ML-DSA-87 signer set | Next |
+| `src/PqAuthSet.sol`, `scripts/pqauthset.ts` | t-of-n ML-DSA-87 signer set: a post-quantum multisig on `PqAuth` | v0.1.0 |
 | `scripts/messaging.ts`, `scripts/rest.ts`, `scripts/smart-account.ts` | Signed and sealed instructions; REST reader with a proxy; linked keys and spending rules | Later |
 
 ## ML-DSA-87 authorisation (from `peal-tender/kit/`)
@@ -93,6 +93,43 @@ Library modules: `qore.ts` (network, accounts, hybrid broadcast), `window.ts`,
   234) and charges no fee, contrary to the docs.
 - A scoped window refuses contract creation; opening a window advances the nonce.
 - The faucet paid 90 QOR per claim, and the fest-token transfer did not arrive.
+
+## Post-quantum multisig: `src/PqAuthSet.sol`
+
+```solidity
+import {PqAuthSet} from "qore-pq-kit/PqAuthSet.sol";
+
+contract Treasury {
+    using PqAuthSet for PqAuthSet.Set;
+    PqAuthSet.Set internal signers;
+
+    constructor(address[] memory members) { signers.init(members, 2); } // ascending; each needs a proven ML-DSA-87 key
+
+    function sweep(address to, uint256 amount, uint256 deadline, address[] calldata who, bytes[] calldata sigs) external {
+        signers.authorizeQuorum(keccak256("Treasury.sweep"), keccak256(abi.encode(to, amount)), deadline, 1 days, who, sigs);
+        // ... move funds
+    }
+}
+```
+
+Each member signs the ordinary `PqAuth.message` with `signer` = itself and
+`action` = `quorumAction(action)`, the action folded under the set's own
+domain, at the set's shared nonce. So a single-signer `PqAuth` signature can
+never stand in for a quorum share, or the reverse. Signers are passed strictly
+ascending, which proves they are distinct. The nonce is consumed once per
+action and keeps counting across `setMembers`, so no signature survives a
+membership change. `authorizeAny` takes one member's signature under a
+separate domain, for actions any single member may take alone (cancelling a
+queued action in a timelock). Every member's key is read live from
+`pqcKeyStatus`, so an on-chain key rotation is followed at once.
+
+Cost on the testnet (spike S6): about 170k gas per signature (92k for
+`pqcVerify`, about 6k to read the key, about 74k for the signature's
+calldata), so a 2-of-3 action is about 340k plus the call itself.
+
+In TypeScript, `signQuorumShare(keypair, member, fields)` signs one share and
+`orderShares(shares)` puts them in the order the contract wants.
+`vectors/pqauthset.json` pins both sides to the same bytes.
 
 ## Threshold sealing
 

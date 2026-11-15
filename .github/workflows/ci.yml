@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run setup
       # The files that came from peal-tender/kit keep their own formatting.
-      - run: forge fmt --check src/threshold test/threshold test/live/ThresholdProbe.sol
+      - run: forge fmt --check src/threshold src/PqAuthSet.sol test/threshold test/PqAuthSet.t.sol test/PqAuthSetVectors.t.sol test/live/ThresholdProbe.sol test/live/StaticcallGasProbe.sol
       - run: forge test
       - run: npm run typecheck
       - run: npm run test:ts

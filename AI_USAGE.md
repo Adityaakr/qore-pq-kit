@@ -57,6 +57,20 @@ no Peal file. No transaction was sent.
 
 After the owner merged the drill PR in peal-tender, the worker ran
 `git subtree split --prefix=kit` on peal-tender `main` and merged the result
-here with `--allow-unrelated-histories`, so the kit's fest-dated commit is kept.
-It changed none of the kit's files; it resolved only the shared config and the
-README, and tagged the result `v0.1.0`.
+here with `--allow-unrelated-histories`, keeping the kit's fest-dated commit
+(a9e6e93). It changed none of the kit's files; it resolved only the shared
+config and the README, and tagged the result `v0.1.0`. The pull request was
+then squash-merged, so `main` holds the kit as part of one commit (3682f19);
+the tag `v0.1.0` still points at the unsquashed history with the kit's own
+commit.
+
+### 16 November 2026: PqAuthSet (this worker)
+
+It wrote `src/PqAuthSet.sol` (t-of-n ML-DSA-87 signer set on `PqAuth`, owner
+decision D9) with 36 Foundry tests, among them replay, wrong member, wrong
+order, mixing single-signer and quorum signatures, membership changes, key
+rotation on chain and fuzzed quorums; `scripts/pqauthset.ts` with its vitest
+suite; and `vectors/pqauthset.json`, checked from both sides. It folded the
+action under a set domain so that a single-signer signature and a quorum share
+can never be swapped for each other, a choice made by the worker and recorded
+here for the owner's review.

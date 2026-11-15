@@ -1,10 +1,10 @@
 # Threat model: qore-pq-kit
 
-Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`). The
-single-signer ML-DSA-87 library `PqAuth` came unchanged from `peal-tender/kit/`;
-peal-tender's own `THREAT_MODEL.md` covers it. Its rules (key read live from
-`pqcKeyStatus`, possession proven, fail closed on an empty precompile answer)
-were checked live by the drill worker (peal-tender `kit/README.md`).
+Scope: the threshold module (`src/threshold/`, `scripts/threshold.ts`) and the
+post-quantum signer set (`src/PqAuthSet.sol`, `scripts/pqauthset.ts`). The
+single-signer library `PqAuth` came from `peal-tender/kit/`; its rules (key read
+live, possession proven, fail closed on empty precompile answers) apply to
+both.
 
 ## What the threshold module promises
 
@@ -54,6 +54,33 @@ commitments and accepts each share only if it matches its hash:
   0.1.0 while 0.2.0 is current. Cards signed on either version verify on the
   other (`test-ts/qoresign-compat.test.ts`).
 - **No audit.** Nothing here has been audited.
+
+## PqAuthSet
+
+**Promises.** An action runs only with valid ML-DSA-87 signatures from at least
+`threshold` distinct current members, over a message binding the chain, the
+contract, the member, the action (under the set's domain), the set nonce, the
+deadline and the argument hash. Signatures cannot be replayed (shared nonce),
+moved to another contract or chain, presented under another member's name,
+reused across a membership change, or swapped with single-signer `PqAuth`
+signatures or `authorizeAny` signatures (separate action domains). Each key is
+read live from `pqcKeyStatus` and must be ML-DSA-87 with proven possession. An
+inactive precompile reverts rather than reading as a verdict.
+
+**Does not promise.**
+- `threshold` colluding members can do anything the contract lets the set do.
+  A timelock in the using contract bounds that; the set does not.
+- A member whose key becomes unusable blocks only quorums that include it; the
+  relayer can choose other members. If fewer than `threshold` usable members
+  remain, the set is stuck until keys are fixed: there is no recovery path in
+  the library.
+- `authorizeAny` gives every member the power to consume the shared nonce. A
+  hostile member can therefore invalidate pending quorum signatures (a denial
+  of service, not a theft). Use it only for actions such as cancel, where that
+  is acceptable.
+- `setMembers` checks only that the new members have usable keys now.
+- In the hackathon demo, one owner holds all three member keys as separate
+  accounts (decision D9 and D3), and says so.
 
 ## Keys and secrets
 

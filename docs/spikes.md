@@ -11,12 +11,12 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | # | Question | Status |
 | --- | --- | --- |
 | K1 | Does the modexp precompile (`0x05`) work, and do `Shamir.sol` / `SealedSlot.sol` give the vectors' answers on the real chain? | **Settled: yes** (16 Nov) |
-| S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | Open: needs a funded throwaway account |
+| S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | Open: needs a funded throwaway account. The shape is confirmed (S6) |
 | S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | Open: needs funded accounts |
 | S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | Cards: **settled offline** (16 Nov). Bundle and registration: open |
-| S4 | CORS on REST and EVM RPC from a browser | Open |
-| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | Open: owner's dashboard sign-in |
-| S6 | Gas of `pqcVerify` at 256-byte messages | Open |
+| S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
+| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | Open: owner's dashboard sign-in. The drill worker saw 90 QOR per claim and no fest-token transfer arriving (peal-tender `kit/README.md`); the kit has `convert-fusd` (`MsgConvertCoin`) for the bank-coin case |
+| S6 | Gas of `pqcVerify` at 256-byte messages | **Settled** (16 Nov): about 92k gas for the precompile; about 318k for a whole transaction carrying one signature |
 
 ## K1. modexp and the threshold libraries on the live chain (16 November 2026)
 
@@ -57,3 +57,71 @@ a card signed with 0.2.0 `signMessage` verifies in QoreSeal's
 `verifyRecipientCard`; a card signed with the wrong ML-DSA key fails on both.
 So risk R4 does not block cards. The browser bundle and a live KEM
 registration remain open.
+
+## S4. CORS from a browser (16 November 2026)
+
+**Run:** `curl` with `Origin: http://localhost:5173`, once as a plain request
+and once as a CORS preflight (`OPTIONS` with `Access-Control-Request-Method`).
+
+| Endpoint | Plain request | Preflight |
+| --- | --- | --- |
+| EVM RPC `https://evm-testnet.qore.host` (`POST eth_chainId`) | 200, `access-control-allow-origin: *` | 204, allows `POST` and `content-type` from `*` |
+| REST `https://api-testnet.qore.host` (`GET /qorechain/pqc/v1/params`) | 200, **no** `access-control-*` header | **501** |
+| CometBFT RPC `https://rpc-testnet.qore.host` (`GET /status`) | 200, **no** `access-control-*` header | not tried |
+
+**Conclusion:** a browser page can talk to the EVM RPC directly, including
+`eth_call` to `pqcKeyStatus`, so the ML-DSA key a bidder checks needs no proxy.
+REST (ML-KEM keys, accounts, windows) needs a proxy, which the design already
+plans and treats as untrusted: `verifyMember` checks what it returns against
+hashes on chain. Native transactions from a browser would also need a proxy for
+the CometBFT RPC.
+
+## S6. What `pqcVerify` and `pqcKeyStatus` cost (16 November 2026)
+
+**Run:** `forge build && npx tsx scripts/pqc-gas-probe.ts`. Each line is one
+`eth_call` of `test/live/StaticcallGasProbe.sol`'s creation code, which makes
+one STATICCALL and returns the gas it used. The ML-DSA-87 key is a throwaway
+made for the run and never registered. Nothing is sent.
+
+**Printed** (block 10,159,719):
+
+```
+valid signature, 32-byte message                 ok=true returnBytes=32 word=1 staticcallGas=90302
+valid signature, 256-byte message                ok=true returnBytes=32 word=1 staticcallGas=92190
+valid signature, 1024-byte message               ok=true returnBytes=32 word=1 staticcallGas=98669
+bit-flipped signature                            ok=true returnBytes=32 word=0 staticcallGas=92190
+other message                                    ok=true returnBytes=32 word=0 staticcallGas=92190
+other key                                        ok=true returnBytes=32 word=0 staticcallGas=92190
+short key (100 bytes)                            ok=true returnBytes=32 word=0 staticcallGas=71478
+short signature (100 bytes)                      ok=true returnBytes=32 word=0 staticcallGas=54350
+arguments as (pubkey, message, signature)        ok=true returnBytes=32 word=0 staticcallGas=92190
+inactive precompile address 0x…0a09              ok=true returnBytes=0 word=- staticcallGas=4826
+pqcKeyStatus, account with a key                 ok=true returnBytes=2752 word=1 staticcallGas=6017
+  -> registered=true algorithm=1 keyBytes=2592 fourthWord=true
+pqcKeyStatus, fresh address (no key)             ok=true returnBytes=160 word=0 staticcallGas=5512
+  -> registered=false algorithm=0 keyBytes=0 fourthWord=false
+eth_estimateGas, direct transaction to pqcVerify (7684 bytes calldata): 317680
+```
+
+**Conclusions:**
+
+- `pqcVerify` itself costs about **92k gas** at 256 bytes, rising slowly with
+  message length. Most of the "about 313k" the design quotes is calldata: a
+  direct transaction carrying the key, the signature and the message
+  estimates at 317,680. In a contract that reads the key with `pqcKeyStatus`,
+  the calldata is the 4,627-byte signature (about 74k gas at 16 gas per byte)
+  plus the 92k verification and about 6k for the key read. So **one PqAuth
+  check is about 170k gas** on top of the transaction, and a 2-of-3 PqAuthSet
+  action about 340k. Committee joins and multisig actions fit well inside a
+  block.
+- `pqcVerify` takes `(pubkey, signature, message)`. Swapping message and
+  signature gives `0`, not an error.
+- Every invalid input answers a clean 32-byte `0`: it never reverts.
+- An address that is not an active precompile answers **success with empty
+  data**, exactly as `PqAuth` assumes, so treating empty data as "unavailable"
+  (fail closed) is right.
+- `pqcKeyStatus` for an address with no key answers 160 bytes, which is
+  `PqAuth`'s `KEY_STATUS_MIN_RETURN`. For a registered account it answers the
+  four-value shape `(bool, uint8, bytes, bool)` with a 2,592-byte key and the
+  fourth word `true`. Whether that word means "possession proven" for a fresh
+  registration is spike S1.
