@@ -57,9 +57,12 @@ no Peal file. No transaction was sent.
 
 After the owner merged the drill PR in peal-tender, the worker ran
 `git subtree split --prefix=kit` on peal-tender `main` and merged the result
-here with `--allow-unrelated-histories`, so the kit's fest-dated commit is kept.
-It changed none of the kit's files; it resolved only the shared config and the
-README, and tagged the result `v0.1.0`.
+here with `--allow-unrelated-histories`, keeping the kit's fest-dated commit
+(a9e6e93). It changed none of the kit's files; it resolved only the shared
+config and the README, and tagged the result `v0.1.0`. The pull request was
+then squash-merged, so `main` holds the kit as part of one commit (3682f19);
+the tag `v0.1.0` still points at the unsquashed history with the kit's own
+commit.
 
 ### 16 November 2026: PqAuthSet (this worker)
 
