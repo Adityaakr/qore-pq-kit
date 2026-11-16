@@ -12,7 +12,7 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | --- | --- | --- |
 | K1 | Does the modexp precompile (`0x05`) work, and do `Shamir.sol` / `SealedSlot.sol` give the vectors' answers on the real chain? | **Settled: yes** (16 Nov) |
 | S1 | Does `pqcKeyStatus`'s fourth word mean "possession proven" (compare with REST `possession_proven` on a fresh registration)? | **Settled** (16 Nov): yes. A registration without a proof is still accepted and reads `false` in both places, so `PqAuth` refuses it |
-| S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | **Settled** (16 Nov): yes, and no window is needed. Over-limit and off-target calls come back `success=false` (nonce spent); a replay is refused and still pays its fee. ERC-20 `denomLimits` are untested (no fUSD on the owner yet) |
+| S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | **Settled** (16 Nov): yes, and no window is needed. Over-limit and off-target calls come back `success=false` (nonce spent); a replay is refused and still pays its fee. fUSD `denomLimits` bound transfers per execution and per day, and an `approve` counts as outflow |
 | S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | **Settled** (16 Nov): cards interoperate; a hybrid-signed `MsgRegisterKEMKey` works; `verifyMember` passes against the live chain; the browser entry points bundle to 162 KB with no Node built-ins |
 | S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
 | S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | **Partly settled** (16 Nov): fest tokens arrive as bank coins `erc20:0x…`, and ERC-20 `balanceOf` reads 0, so `MsgConvertCoin` is needed. A claim to a scripted address failed on the faucet side; a retry is pending with the owner |
@@ -252,5 +252,45 @@ same outcomes):
 - The nonce is the key's own counter, read from
   `/qorechain/abstractaccount/v1/auth_nonce/{owner}/{key}`. A replay costs the
   relayer a fee, so the relayer should check the nonce before broadcasting.
-- **Still open:** ERC-20 `denomLimits` for fUSD (the owner holds no fUSD yet,
-  S5), and the expiry behaviour of a linked key.
+- **Still open:** the expiry behaviour of a linked key. ERC-20 limits are
+  settled in the next section.
+
+## S2 (fUSD part). Per-denom limits on an ERC-20 (16 November 2026)
+
+**Run:** `QORE_SECRETS_DIR=~/.qore-pq-kit/spikes npx tsx scripts/spikes/s2-fusd.ts`,
+with the same accounts as S2. The auction deployer sent the owner 50 fUSD. It
+arrived as the bank coin `erc20:0x9714…63CA`, with an ERC-20 `balanceOf` of 0,
+exactly as in S5.
+
+1. `MsgConvertCoin` moved all 50 fUSD into the owner's ERC-20 balance (tx
+   `8103D64A8815C8320F943EE53A8BA2A2A6B5607881620BB7E2E0B925E7D4083D`).
+2. The owner then replaced its rule with a `MsgUpdateSpendingRules` (tx
+   `384A60A8…`), keeping the linked key: `allowed_denoms ["uqor",
+   "erc20/0x9714…63CA"]`, `denom_limits` for fUSD of `per_tx_limit 1000000`
+   (1 fUSD) and `daily_limit 1200000` (1.2 fUSD). fUSD is listed in
+   `allowed_denoms`, so `transfer` and `approve` need no `allowed_evm_calls`
+   entry.
+
+| Case (agent → `MsgExecuteEVM` to fUSD) | Tx | Outcome |
+| --- | --- | --- |
+| F1. `transfer(relayer, 0.5 fUSD)` | `57B5146BFF7C48C39C8B83747ECA77702B79CB5AC38E24DD07F58E93FEAFC52B` | `success=true`; owner 50 → 49.5 fUSD |
+| F2. `transfer(relayer, 2 fUSD)` | `807C2F375310475F21CC47CCA4135477C71DE8DDA3AD4076C982C87122DC2978` | `success=false`: "per-tx limit 1000000erc20/0x9714…63CA exceeded (attempted 2000000)"; nothing moved |
+| F3. `approve(target, 5 fUSD)` | `84B1AF9274329DE115CA1CEFDBFF207A9C8F66F7F875C210EA973D03CBABB969` | `success=false`: "per-tx limit … exceeded (attempted 5000000)"; allowance stays 0 |
+| F4. `transfer(relayer, 0.9 fUSD)` | `4923949B7172D8C9D29C4D28045EE725D6950C5B8478A2EA8788162F5785F012` | `success=false`: "daily limit 1200000erc20/… exceeded: spent 500000, remaining 700000, attempted 900000" |
+
+**Conclusions:**
+
+- `denomLimits` on `erc20/<token>` bound a linked key's ERC-20 outflow per
+  execution and per UTC day. The chain measures the call's effect: F2 to F4
+  ran (34k to 46k gas) and were rolled back, and the limit's message reports
+  the attempted amount.
+- **An allowance change counts as outflow.** An agent cannot approve more than
+  one execution's limit. For Peal Bidder, the **owner** sets the auction's fUSD
+  allowance (design section 6, layer 3), and the agent's `commitBid`, which
+  pulls escrow with `transferFrom`, is then bounded by these fUSD limits.
+- Only successful executions count towards the daily total (F2 and F3 did not
+  reduce the 0.7 fUSD remaining).
+- A refused ERC-20 call still spends the key's nonce and the relayer's fee,
+  like the native-value refusals in S2.
+- Spend: 0.5 fUSD moved, to the relayer's own address; fees 0.15 QOR per
+  transaction.

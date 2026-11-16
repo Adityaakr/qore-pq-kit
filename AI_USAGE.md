@@ -115,3 +115,12 @@ one by accident; `card` signs a QoreSeal recipient card; `fund` splits test
 QOR with a cap and a floor. It also added `QORE_SECRETS_DIR`, so each
 repository keeps its keys in its own directory. It ran each command on the
 spike accounts (one 0.1 QOR transfer between two of them).
+
+### 16 November 2026: the fUSD part of spike S2 (this worker)
+
+**Owner and orchestrator:** 50 fUSD was sent from the auction deployer to
+the spike owner account. The worker converted it to ERC-20, set fUSD limits
+on the linked agent key, and relayed four agent calls: one allowed transfer,
+one over the per-execution limit, one approval, and one over the daily limit.
+Each result is recorded. 0.5 fUSD moved, to another spike account. The faucet
+was not claimed with any scripted account.
