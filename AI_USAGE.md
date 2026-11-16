@@ -124,3 +124,10 @@ on the linked agent key, and relayed four agent calls: one allowed transfer,
 one over the per-execution limit, one approval, and one over the daily limit.
 Each result is recorded. 0.5 fUSD moved, to another spike account. The faucet
 was not claimed with any scripted account.
+
+### 16 November 2026: toolkit scope complete
+
+**Owner decision:** drop the scripted-address faucet spike for good. The
+worker recorded it in `docs/spikes.md` as not attempted. The kit's planned
+scope (design section 3) and spikes S1 to S6 are done, released as tags
+`v0.1.0` to `v0.5.1`.

@@ -15,7 +15,7 @@ Endpoints: EVM RPC `https://evm-testnet.qore.host`, REST
 | S2 | Does `MsgExecuteEVM` with a linked key and a spending rule work end to end; does it need the owner's EVM window? | **Settled** (16 Nov): yes, and no window is needed. Over-limit and off-target calls come back `success=false` (nonce spent); a replay is refused and still pays its fee. fUSD `denomLimits` bound transfers per execution and per day, and an `approve` counts as outflow |
 | S3 | QoreSeal in a Vite browser bundle; KEM registration; cards across QoreSign 0.1.0 / 0.2.0 | **Settled** (16 Nov): cards interoperate; a hybrid-signed `MsgRegisterKEMKey` works; `verifyMember` passes against the live chain; the browser entry points bundle to 162 KB with no Node built-ins |
 | S4 | CORS on REST and EVM RPC from a browser | **Settled** (16 Nov): EVM RPC allows any origin; REST and CometBFT RPC send no CORS headers |
-| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | **Partly settled** (16 Nov): fest tokens arrive as bank coins `erc20:0x…`, and ERC-20 `balanceOf` reads 0, so `MsgConvertCoin` is needed. A claim to a scripted address failed on the faucet side; a retry is pending with the owner |
+| S5 | Faucet: fUSD as ERC-20 balance or bank coin; scripted address | **Settled** (16 Nov): fest tokens arrive as bank coins `erc20:0x…`, and ERC-20 `balanceOf` reads 0, so `MsgConvertCoin` is needed (confirmed again with the 50 fUSD in S2's fUSD part). The scripted-address claim was **not attempted**, by owner policy |
 | S6 | Gas of `pqcVerify` at 256-byte messages | **Settled** (16 Nov): about 92k gas for the precompile; about 318k for a whole transaction carrying one signature |
 
 ## K1. modexp and the threshold libraries on the live chain (16 November 2026)
@@ -193,8 +193,14 @@ fBTC 8).
 contract (auction escrow, vault) can only pull them after a `MsgConvertCoin`
 into the holder's ERC-20 balance; the kit's `convert-fusd` does that. The
 spending-rule denom for fUSD in the Bidder must be checked against which side
-the agent spends from (spike S2). Whether a dashboard claim can target a
-scripted address is still open: the first attempt failed on the faucet side.
+the agent spends from (spike S2). The fUSD part of S2 confirmed this with a
+second transfer: 50 fUSD sent to a spike account also arrived as a bank coin.
+
+**Not attempted, by owner policy:** whether a dashboard faucet claim can
+target a scripted address. The owner's one attempt failed on the faucet side,
+and the owner then dropped this spike for good: scripted accounts do not claim
+the faucet. Apps fund their service accounts from a bank account the owner
+fills (the kit's `fund` command), and convert fest tokens with `convert-fusd`.
 
 ## S2. `MsgExecuteEVM` with a linked key and a spending rule (16 November 2026)
 
