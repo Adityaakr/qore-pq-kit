@@ -132,8 +132,10 @@ cannot raise its own limits.
   contracts you trust, such as an auction's `commitBid`.
 - `MsgUpdateSpendingRules` replaces all of the account's rules. A careless
   re-link can widen or drop limits.
-- ERC-20 limits (`denomLimits` on `erc20/<token>`) have not been tested live
-  yet.
+- ERC-20 limits (`denomLimits` on `erc20/<token>`) bound transfers and
+  allowance changes per execution and per day (spike S2, fUSD part). They do
+  not bound what a contract the agent may call does with an allowance the
+  owner granted directly; keep such allowances to the budget.
 - The agent's classical key is a hot key. If it is stolen, the thief can spend
   up to the rule's limits until the owner revokes it. Keep the limits small
   and the expiry short.
